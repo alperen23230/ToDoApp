@@ -7,29 +7,19 @@
 //
 
 import UIKit
+import CoreData
 
 class ToDoListViewController: UITableViewController{
     
     var itemArray = [ToDoModel]()
-    let defaults = UserDefaults.standard
+    
+    let context = (UIApplication.shared.delegate as! AppDelegate).persistentContainer.viewContext
     
     override func viewDidLoad() {
         super.viewDidLoad()
         
-        let toDoItem = ToDoModel()
-        toDoItem.title = "buy egg"
-        itemArray.append(toDoItem)
+        print(FileManager.default.urls(for: .documentDirectory, in: .userDomainMask))
         
-        let toDoItem2 = ToDoModel()
-        toDoItem2.title = "buy milk"
-        itemArray.append(toDoItem2)
-        
-        let toDoItem3 = ToDoModel()
-        toDoItem3.title = "buy bread"
-        itemArray.append(toDoItem3)
-        if let items = defaults.array(forKey: "ToDoListArray") as? [ToDoModel]{
-            itemArray = items
-        }
     }
 
     
@@ -75,12 +65,14 @@ class ToDoListViewController: UITableViewController{
         let alert = UIAlertController(title: "Add New ToDo Item", message: "", preferredStyle: .alert)
         let action = UIAlertAction(title: "Add Item", style: .default) { (action) in
             
-            let newItem = ToDoModel()
+            
+            let newItem = ToDoModel(context: self.context)
             newItem.title = textField.text!
+            newItem.done = false
             
             self.itemArray.append(newItem)
-            self.defaults.set(self.itemArray, forKey: "ToDoListArray")
-            self.tableView.reloadData()
+            
+            self.saveItems()
         }
         
         alert.addTextField { (alertTextField) in
@@ -89,6 +81,18 @@ class ToDoListViewController: UITableViewController{
         }
         alert.addAction(action)
         present(alert,animated: true,completion: nil)
+    }
+    
+    
+    func saveItems(){
+        do{
+         try context.save()
+        }
+        catch{
+         print("Error saving context \(error)")
+        }
+        self.tableView.reloadData()
+        
     }
     
 }
