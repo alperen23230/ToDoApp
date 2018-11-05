@@ -11,14 +11,23 @@ import CoreData
 
 class ToDoListViewController: UITableViewController{
     
+    
     var itemArray = [ToDoModel]()
     
-    let context = (UIApplication.shared.delegate as! AppDelegate).persistentContainer.viewContext
+    var selectedCategory : Category? {
+        didSet{
+            loadItems()
+        }
+    }
     
+    let context = (UIApplication.shared.delegate as! AppDelegate).persistentContainer.viewContext
+
     override func viewDidLoad() {
         super.viewDidLoad()
         
         print(FileManager.default.urls(for: .documentDirectory, in: .userDomainMask))
+       
+        loadItems()
         
     }
 
@@ -27,6 +36,9 @@ class ToDoListViewController: UITableViewController{
     override func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
         return itemArray.count
     }
+    
+    
+    
     override func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
         let cell = tableView.dequeueReusableCell(withIdentifier: "ToDoItemCell", for: indexPath)
         cell.textLabel?.text = itemArray[indexPath.row].title
@@ -46,14 +58,10 @@ class ToDoListViewController: UITableViewController{
     override func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
  
         
-        if itemArray[indexPath.row].done == false {
-            itemArray[indexPath.row].done = true
-        }
-        else{
-            itemArray[indexPath.row].done = false
-        }
+        itemArray[indexPath.row].done = !itemArray[indexPath.row].done
         
-        tableView.reloadData()
+        saveItems()
+        
         tableView.deselectRow(at: indexPath, animated: true)
     }
     
@@ -69,6 +77,7 @@ class ToDoListViewController: UITableViewController{
             let newItem = ToDoModel(context: self.context)
             newItem.title = textField.text!
             newItem.done = false
+            newItem.upperCategory = self.selectedCategory
             
             self.itemArray.append(newItem)
             
@@ -95,5 +104,54 @@ class ToDoListViewController: UITableViewController{
         
     }
     
+    func loadItems(with request:NSFetchRequest<ToDoModel> = ToDoModel.fetchRequest(),predicate:NSPredicate? = nil){
+       
+        let categoryPredicate = NSPredicate(format: "upperCategory.name MATCHES %@", selectedCategory!.name!)
+        
+        if let addtionalPredicate = predicate{
+            request.predicate = NSCompoundPredicate(andPredicateWithSubpredicates: [categoryPredicate,addtionalPredicate])
+        }
+        else{
+            request.predicate = categoryPredicate
+        }
+        
+        do{
+            itemArray = try context.fetch(request)
+        }
+        catch{
+            print("Error: \(error)")
+        }
+        tableView.reloadData()
+    }
+    
+    
+}
+
+
+//Search Bar Methods
+extension ToDoListViewController : UISearchBarDelegate{
+    
+    func searchBarSearchButtonClicked(_ searchBar: UISearchBar) {
+        let request:NSFetchRequest<ToDoModel> = ToDoModel.fetchRequest()
+        
+        request.predicate = NSPredicate(format: "title CONTAINS[cd] %@", searchBar.text!)
+        
+        request.sortDescriptors = [NSSortDescriptor(key: "title", ascending: true)]
+       
+        
+       loadItems(with: request)
+        
+    }
+    
+    
+    func searchBar(_ searchBar: UISearchBar, textDidChange searchText: String) {
+        if searchBar.text?.count == 0 {
+            loadItems()
+            
+            DispatchQueue.main.async {
+                searchBar.resignFirstResponder()
+            }
+        }
+    }
 }
 
